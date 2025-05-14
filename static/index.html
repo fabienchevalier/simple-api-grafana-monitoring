@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Ericsson NTN Orchestrator</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- CesiumJS -->
+  <script src="https://cesium.com/downloads/cesiumjs/releases/1.110/Build/Cesium/Cesium.js"></script>
+  <link href="https://cesium.com/downloads/cesiumjs/releases/1.110/Build/Cesium/Widgets/widgets.css" rel="stylesheet" />
+
+  <!-- PapaParse -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+
+  <link rel="stylesheet" href="./styles.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #f5f7fa;
+      color: #1c1c1c;
+      margin: 0;
+    }
+    .dashboard-header {
+      background-color: #ffffff;
+      color: #000000;
+      padding: 0.8rem 1rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #ddd;
+    }
+    .header-left {
+      display: flex;
+      align-items: center;
+    }
+    .header-left img {
+      height: 24px;
+      margin-right: 0.5rem;
+    }
+    .controls {
+      display: flex;
+      gap: 0.5rem;
+    }
+    select, input, button {
+      background-color: #ffffff;
+      color: #1c1c1c;
+      border: 1px solid #ccc;
+      padding: 0.4rem;
+      font-size: 0.85rem;
+      border-radius: 4px;
+    }
+    main.dashboard {
+      display: flex;
+      height: calc(100vh - 64px);
+    }
+    aside.sidebar {
+      width: 200px;
+      background-color: #fdfdfd;
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      border-right: 1px solid #eee;
+    }
+    .sidebar-top {
+      flex: 1;
+      overflow-y: auto;
+    }
+    .sidebar-bottom {
+      height: 300px;
+      border-top: 1px solid #ccc;
+    }
+    .sidebar-bottom canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    aside.control-panel {
+      min-width: 600px;
+      background-color: #fdfdfd;
+      padding: 1rem;
+      overflow-y: auto;
+      border-left: 1px solid #eee;
+    }
+    .map-panel {
+      flex-grow: 1;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+    }
+    #cesiumContainer {
+      width: 100%;
+      height: 95%;
+    }
+    .module h2 {
+      color: #333;
+      font-size: 1rem;
+      border-bottom: 1px solid #ddd;
+      padding-bottom: 0.2rem;
+    }
+    .contact-table th, .contact-table td {
+      border: 1px solid #ccc;
+      padding: 0.25rem;
+      font-size: 0.75rem;
+    }
+    .contact-table th {
+      background-color: #f2f2f2;
+      color: #000;
+    }
+    .orbital-plane-overlay {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 320px;
+      height: 220px;
+      background-color: #ffffff;
+      color: #000000;
+      z-index: 10;
+      border: 1px solid #ccc;
+      display: flex;
+      flex-direction: column;
+    }
+    .orbital-plane-overlay canvas {
+      width: 100%;
+      height: 100%;
+    }
+  </style>
+</head>
+<body>
+  <header class="dashboard-header">
+    <div class="header-left">
+      <img src="./src/ericsson-logo.svg" alt="Ericsson Logo">
+      <h1 class="title">Ericsson NTN Orchestrator - Real-Time Satellite Coverage</h1>
+    </div>
+    <div class="controls">
+      <select id="scenario">
+        <option value="arctic">Arctic Deployment</option>
+        <option value="maritime">Maritime Corridor</option>
+        <option value="emergency">Emergency Response</option>
+      </select>
+      <input id="startTime" type="datetime-local" />
+      <input id="endTime" type="datetime-local" />
+      <button onclick="ntnPlayback.resume()">Start Orchestration</button>
+      <button onclick="simulateLink()">Simulate Link</button>
+      <button onclick="exportConfig()">Export API Config</button>
+    </div>
+  </header>
+
+  <main class="dashboard">
+    <aside class="sidebar">
+      <div class="sidebar-top">
+        <section class="module">
+          <h2>Orbital & TLE Engine</h2>
+          <button onclick="loadTLE()">TLE Data Loader</button>
+          <label>Altitude [km]</label><input type="number" id="altitude" value="600" />
+          <label>Inclination [°]</label><input type="number" id="inclination" value="0" />
+          <label>RAAN [°]</label><input type="number" id="raan" value="0" />
+          <label>True Anomaly [°]</label><input type="number" id="trueAnomaly" value="0" />
+        </section>
+        <section class="module">
+          <h2>Visibility Settings</h2>
+          <label>Min Elevation Angle [°]</label><input type="number" id="minElevation" value="10" />
+        </section>
+      </div>
+      <div class="sidebar-bottom">
+        <canvas id="techViewCanvas"></canvas>
+      </div>
+    </aside>
+
+    <section class="map-panel">
+      <div id="cesiumContainer">
+      </div>
+    </section>
+
+    <aside class="control-panel">
+      <section class="module">
+        <h2>Intelligent Contact Plan</h2>
+        <table class="contact-table">
+          <thead>
+            <tr>
+              <th>Satellite</th><th>Ground Cell</th><th>Contact Window (UTC)</th><th>Status</th><th>Beam Angle</th><th>Link Budget</th>
+            </tr>
+          </thead>
+          <tbody id="contactTable"></tbody>
+        </table>
+      </section>
+
+      <section class="module">
+        <h2>Cell A Configuration</h2>
+        <label>Geolocation</label><input type="text" id="cellLatLon" readonly />
+        <label>Cell Radius [km]</label><input type="number" id="cellRadius" readonly />
+        <label>UE Capacity</label><input type="number" id="ueCapacity" readonly />
+      </section>
+
+      <section class="module">
+        <h2>Network Event Feed</h2>
+        <ul id="handoverLog"></ul>
+      </section>
+
+      <section class="module">
+        <h2>Beam Status</h2>
+        <ul id="beamStatus"></ul>
+      </section>
+    </aside>
+  </main>
+
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>

@@ -1,6 +1,9 @@
 # FastAPI Monitoring with Prometheus & Grafana
 
-This repository provides a ready-to-use example of deploying a simple FastAPI application instrumented with Prometheus metrics, alongside a basic monitoring stack using Prometheus and Grafana.
+> [!NOTE]  
+> This was a student project. Application source-code is taken from the Ericsson NTN Orchestrator – Satellite Handover Demo project.
+
+This repository provides a ready-to-use example of deploying a simple static website with FastAPI, Prometheus, and Grafana using Docker Compose. The FastAPI application serves a static HTML page and exposes Prometheus metrics. Grafana is configured to visualize these metrics.
 
 ![image](screenshot.png)
 
@@ -25,7 +28,9 @@ This repository provides a ready-to-use example of deploying a simple FastAPI ap
 
 - Grafana: <http://localhost:3000> (default login: admin / admin)
 
-3. Make request to the FastAPI app to populate the metrics:
+- Cell Application : <http://localhost:8000>
+
+1. Make request to the FastAPI app to populate the metrics or simply browse the app:
 
    ```bash
    while true; do
